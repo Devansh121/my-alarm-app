@@ -20,8 +20,9 @@ data class Alarm(
     val enabled: Boolean = true,
 ) {
     init {
-        require(hour in 0..23 && minute in 0..59)
-        require(snoozeMinutes in 1..30)
+        require(hour in 0..23) { "hour=$hour out of 0..23" }
+        require(minute in 0..59) { "minute=$minute out of 0..59" }
+        require(snoozeMinutes in 1..30) { "snoozeMinutes=$snoozeMinutes out of 1..30" }
     }
 }
 
@@ -29,5 +30,7 @@ fun repeatDaysToCsv(days: Set<DayOfWeek>): String =
     days.sortedBy { it.isoDayNumber }.joinToString(",") { it.isoDayNumber.toString() }
 
 fun repeatDaysFromCsv(csv: String): Set<DayOfWeek> =
-    if (csv.isBlank()) emptySet()
-    else csv.split(",").map { DayOfWeek(it.toInt()) }.toSet()
+    csv.split(",")
+        .mapNotNull { token -> token.trim().toIntOrNull()?.takeIf { it in 1..7 } }
+        .map { DayOfWeek(it) }
+        .toSet()
