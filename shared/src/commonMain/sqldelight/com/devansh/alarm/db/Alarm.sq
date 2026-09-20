@@ -8,7 +8,8 @@ CREATE TABLE alarmRow (
   tone_id TEXT,
   snooze_enabled INTEGER NOT NULL,
   snooze_minutes INTEGER NOT NULL,
-  enabled INTEGER NOT NULL
+  enabled INTEGER NOT NULL,
+  next_fire_epoch_ms INTEGER
 );
 
 selectAll:
@@ -20,8 +21,11 @@ SELECT * FROM alarmRow WHERE id = ?;
 upsert:
 INSERT OR REPLACE INTO alarmRow (
   id, hour, minute, repeat_days, label, tone_mode, tone_id,
-  snooze_enabled, snooze_minutes, enabled
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  snooze_enabled, snooze_minutes, enabled, next_fire_epoch_ms
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+setNextFire:
+UPDATE alarmRow SET next_fire_epoch_ms = ? WHERE id = ?;
 
 setEnabled:
 UPDATE alarmRow SET enabled = ? WHERE id = ?;

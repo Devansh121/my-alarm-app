@@ -97,8 +97,29 @@ class AppCore(
 
     /** Call on app foreground: re-syncs pending notifications with the DB. */
     fun refreshAndReschedule() {
-        val all = repository.all()
-        pending = scheduler.rescheduleAll(all, now(), zone()).associateBy { it.alarmId }
-        alarms.value = all
+        val reconciled = reconcileMissed(repository.all())
+        pending = scheduler.rescheduleAll(reconciled, now(), zone()).associateBy { it.alarmId }
+        reconciled.forEach { alarm ->
+            repository.setNextFire(alarm.id, pending[alarm.id]?.fireAt?.toEpochMilliseconds())
+        }
+        alarms.value = reconciled
+    }
+
+    /**
+     * A one-shot alarm whose persisted fire time passed while the app was dead
+     * already rang as a system notification — disable it instead of silently
+     * rescheduling it for tomorrow.
+     */
+    private fun reconcileMissed(all: List<Alarm>): List<Alarm> {
+        val nowMs = now().toEpochMilliseconds()
+        return all.map { alarm ->
+            val stored = repository.nextFireMs(alarm.id)
+            if (alarm.enabled && alarm.repeatDays.isEmpty() && stored != null && stored <= nowMs) {
+                repository.setEnabled(alarm.id, false)
+                alarm.copy(enabled = false)
+            } else {
+                alarm
+            }
+        }
     }
 }

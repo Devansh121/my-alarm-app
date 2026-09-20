@@ -34,6 +34,7 @@ class AlarmRepository(driver: SqlDriver) {
             snooze_enabled = if (alarm.snoozeEnabled) 1L else 0L,
             snooze_minutes = alarm.snoozeMinutes.toLong(),
             enabled = if (alarm.enabled) 1L else 0L,
+            next_fire_epoch_ms = null,
         )
     }
 
@@ -46,6 +47,14 @@ class AlarmRepository(driver: SqlDriver) {
     }
 
     fun count(): Long = queries.countAll().executeAsOne()
+
+    /** Epoch ms of the last scheduled fire, persisted for missed-alarm reconciliation. */
+    fun nextFireMs(id: String): Long? =
+        queries.selectById(id).executeAsOneOrNull()?.next_fire_epoch_ms
+
+    fun setNextFire(id: String, epochMs: Long?) {
+        queries.setNextFire(epochMs, id)
+    }
 
     private fun AlarmRow.toDomain(): Alarm = Alarm(
         id = id,
