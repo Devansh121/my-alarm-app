@@ -9,9 +9,21 @@ import com.devansh.alarm.domain.BUNDLED_TONES
 import com.devansh.alarm.domain.ToneRandomizer
 import com.devansh.alarm.engine.AlarmEngine
 import com.devansh.alarm.engine.AlarmScheduler
+import com.devansh.alarm.engine.FireRequest
 import kotlin.time.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
+
+/** Platform audio boundary: Swift's AlarmRinger implements this. */
+interface RingerControl {
+    fun start(toneFileName: String)
+    fun stop()
+}
+
+object NoopRinger : RingerControl {
+    override fun start(toneFileName: String) {}
+    override fun stop() {}
+}
 
 /**
  * Single wiring point between persistence, scheduling, and UI state.
@@ -22,12 +34,19 @@ import kotlinx.datetime.TimeZone
 class AppCore(
     private val repository: AlarmRepository,
     engine: AlarmEngine,
+    private val ringer: RingerControl = NoopRinger,
     private val now: () -> Instant = { Clock.System.now() },
     private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {
     private val scheduler = AlarmScheduler(engine, ToneRandomizer(BUNDLED_TONES))
 
+    /** alarmId -> last scheduled request; source of truth for the ringing tone. */
+    private var pending: Map<String, FireRequest> = emptyMap()
+
     val alarms = mutableStateOf<List<Alarm>>(emptyList())
+
+    /** Non-null while an alarm is ringing; drives the full-screen ringing UI. */
+    val ringing = mutableStateOf<Alarm?>(null)
 
     init {
         refreshAndReschedule()
@@ -48,10 +67,38 @@ class AppCore(
         refreshAndReschedule()
     }
 
+    /** Called from the platform when the alarm notification fires. */
+    fun onAlarmFired(alarmId: String) {
+        val alarm = repository.byId(alarmId) ?: return
+        ringing.value = alarm
+        ringer.start(pending[alarmId]?.toneFileName ?: BUNDLED_TONES.first().fileName)
+    }
+
+    /** Stop button: silence, one-shot alarms disable themselves, reschedule. */
+    fun stopRinging() {
+        val alarm = ringing.value ?: return
+        ringer.stop()
+        ringing.value = null
+        if (alarm.repeatDays.isEmpty()) {
+            repository.setEnabled(alarm.id, false)
+        }
+        refreshAndReschedule()
+    }
+
+    /** Snooze button: silence now, re-ring in [Alarm.snoozeMinutes]. */
+    fun snoozeRinging() {
+        val alarm = ringing.value ?: return
+        val tone = pending[alarm.id]?.toneFileName ?: BUNDLED_TONES.first().fileName
+        ringer.stop()
+        ringing.value = null
+        val request = scheduler.snooze(alarm, now(), tone)
+        pending = pending + (alarm.id to request)
+    }
+
     /** Call on app foreground: re-syncs pending notifications with the DB. */
     fun refreshAndReschedule() {
         val all = repository.all()
-        scheduler.rescheduleAll(all, now(), zone())
+        pending = scheduler.rescheduleAll(all, now(), zone()).associateBy { it.alarmId }
         alarms.value = all
     }
 }

@@ -18,11 +18,29 @@ private object NoopEngine : AlarmEngine {
     override fun cancelAll() {}
 }
 
-fun MainViewController(): UIViewController = MainViewController(NoopEngine)
+/**
+ * Swift-facing handle to the running AppCore. The notification delegate
+ * calls [alarmFired] when an alarm notification arrives in the foreground
+ * or is tapped.
+ */
+object AppBridge {
+    internal var core: AppCore? = null
 
-/** Entry point for Swift: inject the UNUserNotificationCenter-backed engine. */
-fun MainViewController(engine: AlarmEngine): UIViewController {
+    fun alarmFired(alarmId: String) {
+        core?.onAlarmFired(alarmId)
+    }
+
+    fun appForegrounded() {
+        core?.refreshAndReschedule()
+    }
+}
+
+fun MainViewController(): UIViewController = MainViewController(NoopEngine, NoopRinger)
+
+/** Entry point for Swift: inject the notification engine and tone ringer. */
+fun MainViewController(engine: AlarmEngine, ringer: RingerControl): UIViewController {
     val repository = AlarmRepository(NativeSqliteDriver(AlarmDb.Schema, "alarm.db"))
-    val core = AppCore(repository, engine)
+    val core = AppCore(repository, engine, ringer)
+    AppBridge.core = core
     return ComposeUIViewController { App(core) }
 }
