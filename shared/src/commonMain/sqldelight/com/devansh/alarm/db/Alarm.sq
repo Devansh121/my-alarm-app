@@ -1,0 +1,33 @@
+CREATE TABLE alarmRow (
+  id TEXT NOT NULL PRIMARY KEY,
+  hour INTEGER NOT NULL,
+  minute INTEGER NOT NULL,
+  repeat_days TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL,
+  tone_mode TEXT NOT NULL,
+  tone_id TEXT,
+  snooze_enabled INTEGER NOT NULL,
+  snooze_minutes INTEGER NOT NULL,
+  enabled INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM alarmRow ORDER BY hour, minute, id;
+
+selectById:
+SELECT * FROM alarmRow WHERE id = ?;
+
+upsert:
+INSERT OR REPLACE INTO alarmRow (
+  id, hour, minute, repeat_days, label, tone_mode, tone_id,
+  snooze_enabled, snooze_minutes, enabled
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+setEnabled:
+UPDATE alarmRow SET enabled = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM alarmRow WHERE id = ?;
+
+countAll:
+SELECT COUNT(*) FROM alarmRow;
