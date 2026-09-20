@@ -1,0 +1,21 @@
+# Gradle / Kotlin
+.gradle/
+build/
+*/build/
+.kotlin/
+local.properties
+
+# Xcode
+iosApp/iosApp.xcodeproj/
+xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store
