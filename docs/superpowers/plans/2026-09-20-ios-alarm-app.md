@@ -12,6 +12,45 @@
 
 ---
 
+## Executor rules (read first, follow exactly)
+
+1. **Work tasks strictly in order.** Do not start a task until the previous task's "Done when" criterion is met.
+2. **Never skip the run-the-failing-test step.** TDD steps are: write test → run and SEE it fail → implement → run and SEE it pass. If a test passes before you implement, stop and investigate — the test is wrong.
+3. **Branch is `master`.** After every task's commit, run `git push` so CI (`.github/workflows/ci.yml`, macOS runner) validates it. Check the run with `gh run watch --exit-status` before moving on; a red CI run means fix before proceeding.
+4. **Commit messages:** use the exact messages given in each task. **NEVER add "Co-Authored-By", "Claude-Session", or any attribution trailers** — plain messages only (also enforced by the user's global CLAUDE.md).
+5. **Manual steps are real.** Steps marked "manual user step" or "on-device manual test" require the human. Report back and wait; never claim them done or fake their output.
+6. **If an API doesn't resolve,** read the "Known risks & watch-items" section at the bottom before improvising. Check generated headers/docs; do not silently substitute different libraries or downgrade versions.
+7. **Expected test output formats** (Kotlin/Native via Gradle):
+   - FAIL at compile stage looks like: `e: file:///…/NextFireCalculatorTest.kt:12:9 Unresolved reference 'NextFireCalculator'` followed by `BUILD FAILED`.
+   - FAIL at assertion stage looks like: `kotlin.AssertionError: Expected <…>, actual <…>` with the failing test name, then `BUILD FAILED` and a `Tests failed` summary.
+   - PASS looks like: `BUILD SUCCESSFUL` (Gradle only prints per-test lines on failure; use `--tests` filter or add `testLogging` if you need to confirm a specific test executed).
+
+### Done-when criteria (one line per task)
+
+| Task | Done when |
+|------|-----------|
+| 1 | `xcodebuild -version` prints ≥16.x AND `xcrun devicectl list devices` shows the iPhone; `xcodegen` on PATH |
+| 2 | `./gradlew :shared:compileKotlinIosSimulatorArm64` → BUILD SUCCESSFUL; committed & pushed; CI guard removed from ci.yml in the same commit; CI green |
+| 3 | Simulator xcodebuild → BUILD SUCCEEDED; app runs on physical iPhone showing "shared module builds"; committed & pushed |
+| 4 | `:shared:iosSimulatorArm64Test` green incl. both AlarmTest cases; committed & pushed; CI green |
+| 5 | All 6 NextFireCalculatorTest cases pass; committed & pushed; CI green |
+| 6 | All 4 ToneRandomizerTest cases pass; committed & pushed; CI green |
+| 7 | All 4 AlarmRepositoryTest cases pass; committed & pushed; CI green |
+| 8 | All 7 AlarmSchedulerTest cases pass; committed & pushed; CI green |
+| 9 | `:shared:compileKotlinIosSimulatorArm64` BUILD SUCCESSFUL with AppCore wiring + temporary Swift NoopEngine; committed & pushed |
+| 10 | Simulator build SUCCEEDED; alarm list renders with rows/toggles; committed & pushed |
+| 11 | Manual simulator check passes: add/edit/toggle/delete alarm, wheel snaps, tone list shows Random default; committed & pushed |
+| 12 | 8 .caf files exist and `afplay` plays one; Xcode project regenerated; committed & pushed |
+| 13 | Simulator build SUCCEEDED with real engine wired (no NoopEngine remains); committed & pushed |
+| 14 | Full M2 on-device checklist (Task 14 Step 3) confirmed by the user; committed & pushed |
+| 15 | App target builds with intents + attributes files; bridge wired in AppDelegate; committed & pushed |
+| 16 | Full M3 on-device checklist (Task 16 Step 7) confirmed by the user; committed & pushed |
+| 17 | rescheduleAll test passes; committed & pushed; CI green |
+| 18 | Both builds succeed; banner shows when notifications denied (simulator check); committed & pushed |
+| 19 | All Kotlin tests green, full device regression confirmed by user, fidelity pass done; final commit pushed; CI green |
+
+---
+
 ## File Structure (final state)
 
 ```
@@ -211,11 +250,21 @@ gradle wrapper --gradle-version 8.14 2>/dev/null || brew install gradle && gradl
 
 Expected: `BUILD SUCCESSFUL`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Un-guard CI** — `.github/workflows/ci.yml` already exists with a scaffold guard. Now that `settings.gradle.kts` exists, replace the guarded "Run shared-module tests" step with the direct command so CI hard-fails on test failures:
+
+```yaml
+      - name: Run shared-module tests
+        run: ./gradlew :shared:iosSimulatorArm64Test --no-daemon
+```
+
+- [ ] **Step 9: Commit, push, verify CI**
 
 ```bash
 git add -A && git commit -m "chore: KMP scaffold, shared module builds for iOS"
+git push && gh run watch --exit-status
 ```
+
+Expected: CI run completes green on the macos-14 runner.
 
 ### Task 3: Xcode project via XcodeGen + blank app on device
 
@@ -780,7 +829,7 @@ Note: if the generated row class name differs (check `shared/build/generated/sql
 **Files:**
 - Create: `shared/src/commonMain/kotlin/com/devansh/alarm/engine/AlarmEngine.kt`
 - Create: `shared/src/commonMain/kotlin/com/devansh/alarm/domain/AlarmScheduler.kt`
-- Test: `shared/src/commonTest/kotlin/com/devansh/alarm/domain/AlarmSchedulerTest.kt`
+- Test: `shared/src/iosTest/kotlin/com/devansh/alarm/domain/AlarmSchedulerTest.kt` (iosTest, NOT commonTest — it needs the iOS `DriverFactory` actual)
 
 - [ ] **Step 1: Write `AlarmEngine.kt`** (the Kotlin↔Swift boundary — exported as an ObjC protocol)
 
@@ -886,7 +935,7 @@ class AlarmSchedulerTest {
 }
 ```
 
-Note: these tests use the repository, so they live in `commonTest` but need the driver — **move this test file to `iosTest`** alongside `AlarmRepositoryTest` (same package), since `DriverFactory` actual only exists for iOS. Run with `:shared:iosSimulatorArm64Test`.
+Note: this test file lives in `iosTest` (keeping package `com.devansh.alarm.domain` as declared in the code above) because it needs the iOS `DriverFactory` actual. Run with `:shared:iosSimulatorArm64Test`.
 
 - [ ] **Step 3: Run to verify FAIL.**
 
@@ -2114,7 +2163,7 @@ LiveActivityController.shared.showSnoozed(alarmId: request.alarmId, until: fireA
 
 **Files:**
 - Modify: `shared/src/commonMain/kotlin/com/devansh/alarm/domain/AlarmScheduler.kt`
-- Test: add to `shared/src/iosTest/kotlin/com/devansh/alarm/data/AlarmSchedulerTest.kt`
+- Test: add to `shared/src/iosTest/kotlin/com/devansh/alarm/domain/AlarmSchedulerTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
