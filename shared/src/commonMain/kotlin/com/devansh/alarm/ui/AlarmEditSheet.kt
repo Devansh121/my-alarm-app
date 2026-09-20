@@ -2,6 +2,8 @@ package com.devansh.alarm.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,8 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.devansh.alarm.domain.Alarm
+import com.devansh.alarm.domain.BUNDLED_TONES
+import com.devansh.alarm.domain.ToneSelection
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.isoDayNumber
 
 private val DAY_LETTERS = listOf(
     DayOfWeek.MONDAY to "M", DayOfWeek.TUESDAY to "T", DayOfWeek.WEDNESDAY to "W",
@@ -32,20 +35,23 @@ private val DAY_LETTERS = listOf(
     DayOfWeek.SUNDAY to "S",
 )
 
+private val SNOOZE_OPTIONS = listOf(5, 9, 10, 15, 20, 30)
+
 /** Bottom sheet for creating or editing an alarm. [initial] pre-fills for edits. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AlarmEditSheet(
     initial: Alarm,
     onSave: (Alarm) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var hour12 by remember { mutableStateOf(to12Hour(initial.hour)) }
+    var hour by remember { mutableStateOf(initial.hour) }
     var minute by remember { mutableStateOf(initial.minute) }
-    var pm by remember { mutableStateOf(isPm(initial.hour)) }
     var label by remember { mutableStateOf(initial.label) }
     var days by remember { mutableStateOf(initial.repeatDays) }
     var snooze by remember { mutableStateOf(initial.snoozeEnabled) }
+    var snoozeMinutes by remember { mutableStateOf(initial.snoozeMinutes) }
+    var tone by remember { mutableStateOf(initial.tone) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -61,28 +67,15 @@ fun AlarmEditSheet(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            Row(
+            NativeTimeWheel(
+                hour = hour,
+                minute = minute,
+                onTimeChange = { h, m ->
+                    hour = h
+                    minute = m
+                },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WheelPicker(
-                    items = (1..12).map { it.toString() },
-                    selectedIndex = hour12 - 1,
-                    onSelected = { hour12 = it + 1 },
-                )
-                Text(":", style = MaterialTheme.typography.headlineSmall)
-                WheelPicker(
-                    items = (0..59).map { it.toString().padStart(2, '0') },
-                    selectedIndex = minute,
-                    onSelected = { minute = it },
-                )
-                WheelPicker(
-                    items = listOf("AM", "PM"),
-                    selectedIndex = if (pm) 1 else 0,
-                    onSelected = { pm = it == 1 },
-                )
-            }
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -110,8 +103,46 @@ fun AlarmEditSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Snooze (${initial.snoozeMinutes} min)", color = MaterialTheme.colorScheme.onSurface)
+                Text("Snooze", color = MaterialTheme.colorScheme.onSurface)
                 Switch(checked = snooze, onCheckedChange = { snooze = it })
+            }
+
+            if (snooze) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SNOOZE_OPTIONS.forEach { minutes ->
+                        FilterChip(
+                            selected = snoozeMinutes == minutes,
+                            onClick = { snoozeMinutes = minutes },
+                            label = { Text("$minutes") },
+                        )
+                    }
+                }
+            }
+
+            Text(
+                "Tone",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FilterChip(
+                    selected = tone == ToneSelection.Random,
+                    onClick = { tone = ToneSelection.Random },
+                    label = { Text("Random") },
+                )
+                BUNDLED_TONES.forEach { bundled ->
+                    FilterChip(
+                        selected = (tone as? ToneSelection.Pinned)?.toneId == bundled.id,
+                        onClick = { tone = ToneSelection.Pinned(bundled.id) },
+                        label = { Text(bundled.displayName) },
+                    )
+                }
             }
 
             Row(
@@ -125,11 +156,13 @@ fun AlarmEditSheet(
                     onClick = {
                         onSave(
                             initial.copy(
-                                hour = to24Hour(hour12, pm),
+                                hour = hour,
                                 minute = minute,
                                 label = label.ifBlank { "Alarm" },
                                 repeatDays = days,
                                 snoozeEnabled = snooze,
+                                snoozeMinutes = snoozeMinutes,
+                                tone = tone,
                             ),
                         )
                     },
