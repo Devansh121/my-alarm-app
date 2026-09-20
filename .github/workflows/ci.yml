@@ -20,13 +20,5 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Guard: the Gradle scaffold lands in plan Task 2. Until then this step
-      # is a no-op so CI stays green. DELETE the guard (keep only the gradlew
-      # line) as part of Task 2 so tests hard-fail from then on.
       - name: Run shared-module tests
-        run: |
-          if [ -f settings.gradle.kts ]; then
-            ./gradlew :shared:iosSimulatorArm64Test --no-daemon
-          else
-            echo "Gradle scaffold not present yet (pre-Task-2) — skipping tests."
-          fi
+        run: ./gradlew :shared:iosSimulatorArm64Test --no-daemon
