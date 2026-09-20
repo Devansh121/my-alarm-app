@@ -3,6 +3,10 @@ import Shared
 
 @main
 struct iOSApp: App {
+    init() {
+        NotificationAlarmEngine.shared.requestAuthorization()
+    }
+
     var body: some Scene {
         WindowGroup {
             ComposeView().ignoresSafeArea(.all)
@@ -12,7 +16,7 @@ struct iOSApp: App {
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        MainViewControllerKt.MainViewController(engine: NotificationAlarmEngine.shared)
     }
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }
