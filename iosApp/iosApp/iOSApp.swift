@@ -5,6 +5,7 @@ import Shared
 struct iOSApp: App {
     init() {
         NotificationAlarmEngine.shared.requestAuthorization()
+        NotificationDelegate.shared.install()
     }
 
     var body: some Scene {
@@ -16,7 +17,10 @@ struct iOSApp: App {
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController(engine: NotificationAlarmEngine.shared)
+        MainViewControllerKt.MainViewController(
+            engine: NotificationAlarmEngine.shared,
+            ringer: AlarmRinger.shared
+        )
     }
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }

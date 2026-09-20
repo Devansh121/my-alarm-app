@@ -1,10 +1,11 @@
 import AVFoundation
 import Foundation
+import Shared
 
 /// Plays the alarm tone at full effect while the app is foregrounded and
 /// guards against a silenced ringer: AVAudioSession .playback ignores the
 /// mute switch, and volume below the floor is reported so the UI can warn.
-final class AlarmRinger {
+final class AlarmRinger: RingerControl {
 
     static let shared = AlarmRinger()
     static let minimumVolume: Float = 0.3

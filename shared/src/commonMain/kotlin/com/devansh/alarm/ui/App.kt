@@ -71,5 +71,13 @@ fun App(core: AppCore) {
                 onDismiss = { editing = null },
             )
         }
+
+        core.ringing.value?.let { alarm ->
+            RingingScreen(
+                alarm = alarm,
+                onSnooze = core::snoozeRinging,
+                onStop = core::stopRinging,
+            )
+        }
     }
 }
