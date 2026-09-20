@@ -16,7 +16,14 @@
 
 1. **Work tasks strictly in order.** Do not start a task until the previous task's "Done when" criterion is met.
 2. **Never skip the run-the-failing-test step.** TDD steps are: write test → run and SEE it fail → implement → run and SEE it pass. If a test passes before you implement, stop and investigate — the test is wrong.
-3. **Branch is `master`.** After every task's commit, run `git push` so CI (`.github/workflows/ci.yml`, macOS runner) validates it. Check the run with `gh run watch --exit-status` before moving on; a red CI run means fix before proceeding.
+3. **PR-based flow — `master` is protected.** Direct pushes to `master` are blocked; the "Kotlin tests (iOS simulator)" check must be green before merge (enforced for admins too). Per task:
+   - Branch off latest master: `git checkout master && git pull && git checkout -b task-N-<short-slug>`
+   - Make the task's commits on that branch (use the commit messages given in the task).
+   - `git push -u origin task-N-<short-slug>`
+   - `gh pr create --title "<the task's main commit message>" --body "Implements Task N of docs/superpowers/plans/2026-09-20-ios-alarm-app.md"`
+   - Wait for CI: `gh pr checks --watch --fail-fast` — if red, fix on the branch and push again.
+   - Merge with squash: `gh pr merge --squash --delete-branch`
+   - Where a task step says "commit & push", that means commit on the task branch; the PR/merge happens at the end of the task.
 4. **Commit messages:** use the exact messages given in each task. **NEVER add "Co-Authored-By", "Claude-Session", or any attribution trailers** — plain messages only (also enforced by the user's global CLAUDE.md).
 5. **Manual steps are real.** Steps marked "manual user step" or "on-device manual test" require the human. Report back and wait; never claim them done or fake their output.
 6. **If an API doesn't resolve,** read the "Known risks & watch-items" section at the bottom before improvising. Check generated headers/docs; do not silently substitute different libraries or downgrade versions.
@@ -257,14 +264,17 @@ Expected: `BUILD SUCCESSFUL`.
         run: ./gradlew :shared:iosSimulatorArm64Test --no-daemon
 ```
 
-- [ ] **Step 9: Commit, push, verify CI**
+- [ ] **Step 9: Commit and open the task PR**
 
 ```bash
 git add -A && git commit -m "chore: KMP scaffold, shared module builds for iOS"
-git push && gh run watch --exit-status
+git push -u origin task-2-kmp-scaffold
+gh pr create --title "chore: KMP scaffold, shared module builds for iOS" \
+  --body "Implements Task 2 of docs/superpowers/plans/2026-09-20-ios-alarm-app.md"
+gh pr checks --watch --fail-fast && gh pr merge --squash --delete-branch
 ```
 
-Expected: CI run completes green on the macos-14 runner.
+Expected: CI check "Kotlin tests (iOS simulator)" green on the macos-14 runner, then squash-merged.
 
 ### Task 3: Xcode project via XcodeGen + blank app on device
 
