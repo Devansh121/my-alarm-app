@@ -79,18 +79,44 @@ class AppCore(
         val alarm = ringing.value ?: return
         ringer.stop()
         ringing.value = null
+        stopAlarm(alarm)
+    }
+
+    /** Snooze button: silence now, re-ring in [Alarm.snoozeMinutes]. */
+    fun snoozeRinging() {
+        val alarm = ringing.value ?: return
+        ringer.stop()
+        ringing.value = null
+        scheduleSnooze(alarm)
+    }
+
+    /**
+     * "Snooze" notification action: reschedule without touching the ringing
+     * state — the app may be backgrounded and nothing is audibly ringing.
+     */
+    fun snoozeFromNotification(alarmId: String) {
+        val alarm = repository.byId(alarmId) ?: return
+        if (!alarm.snoozeEnabled) return
+        scheduleSnooze(alarm)
+    }
+
+    /** "Stop" notification action: no ringer involved, just settle the alarm. */
+    fun stopFromNotification(alarmId: String) {
+        val alarm = repository.byId(alarmId) ?: return
+        stopAlarm(alarm)
+    }
+
+    /** One-shot alarms disable themselves once stopped; then re-sync engine + UI. */
+    private fun stopAlarm(alarm: Alarm) {
         if (alarm.repeatDays.isEmpty()) {
             repository.setEnabled(alarm.id, false)
         }
         refreshAndReschedule()
     }
 
-    /** Snooze button: silence now, re-ring in [Alarm.snoozeMinutes]. */
-    fun snoozeRinging() {
-        val alarm = ringing.value ?: return
+    /** Re-ring in [Alarm.snoozeMinutes] using the pending request's tone. */
+    private fun scheduleSnooze(alarm: Alarm) {
         val tone = pending[alarm.id]?.toneFileName ?: BUNDLED_TONES.first().fileName
-        ringer.stop()
-        ringing.value = null
         val request = scheduler.snooze(alarm, now(), tone)
         pending = pending + (alarm.id to request)
     }

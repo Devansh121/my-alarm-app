@@ -30,6 +30,16 @@ object AppBridge {
         core?.onAlarmFired(alarmId)
     }
 
+    /** "Snooze" action on the alarm notification (app may be backgrounded). */
+    fun snoozeFromNotification(alarmId: String) {
+        core?.snoozeFromNotification(alarmId)
+    }
+
+    /** "Stop" action on the alarm notification (app may be backgrounded). */
+    fun stopFromNotification(alarmId: String) {
+        core?.stopFromNotification(alarmId)
+    }
+
     fun appForegrounded() {
         core?.refreshAndReschedule()
     }

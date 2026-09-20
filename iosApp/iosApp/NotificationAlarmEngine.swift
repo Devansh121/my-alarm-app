@@ -9,12 +9,37 @@ final class NotificationAlarmEngine: AlarmEngine {
 
     static let shared = NotificationAlarmEngine()
 
+    static let alarmCategoryId = "ALARM"
+    static let snoozeActionId = "SNOOZE"
+    static let stopActionId = "STOP"
+
     func requestAuthorization() {
+        registerCategories()
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .sound, .badge]
         ) { granted, _ in
             NSLog("alarm: notification permission granted=\(granted)")
         }
+    }
+
+    /// Registers the ALARM category so alarm notifications get
+    /// Snooze/Stop buttons on the lock screen and in banners.
+    private func registerCategories() {
+        let snooze = UNNotificationAction(
+            identifier: Self.snoozeActionId,
+            title: "Snooze"
+        )
+        let stop = UNNotificationAction(
+            identifier: Self.stopActionId,
+            title: "Stop",
+            options: [.destructive]
+        )
+        let category = UNNotificationCategory(
+            identifier: Self.alarmCategoryId,
+            actions: [snooze, stop],
+            intentIdentifiers: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
     func schedule(request: FireRequest) {
@@ -24,6 +49,7 @@ final class NotificationAlarmEngine: AlarmEngine {
         content.sound = UNNotificationSound(
             named: UNNotificationSoundName(request.toneFileName)
         )
+        content.categoryIdentifier = Self.alarmCategoryId
 
         let fireDate = Date(
             timeIntervalSince1970: Double(request.fireAt.toEpochMilliseconds()) / 1000.0

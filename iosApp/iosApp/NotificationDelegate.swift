@@ -27,7 +27,16 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        AppBridge.shared.alarmFired(alarmId: response.notification.request.identifier)
+        let alarmId = response.notification.request.identifier
+        switch response.actionIdentifier {
+        case NotificationAlarmEngine.snoozeActionId:
+            AppBridge.shared.snoozeFromNotification(alarmId: alarmId)
+        case NotificationAlarmEngine.stopActionId:
+            AppBridge.shared.stopFromNotification(alarmId: alarmId)
+        default:
+            // Tap on the notification body: open the in-app ringing screen.
+            AppBridge.shared.alarmFired(alarmId: alarmId)
+        }
         completionHandler()
     }
 }
