@@ -15,9 +15,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.devansh.myalarm
+        DEVELOPMENT_TEAM: GBQ9HCSRG7
+        CODE_SIGN_STYLE: Automatic
         INFOPLIST_FILE: iosApp/Info.plist
         FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
-        OTHER_LDFLAGS: "$(inherited) -framework Shared"
+        OTHER_LDFLAGS: "$(inherited) -framework Shared -lsqlite3"
         ENABLE_USER_SCRIPT_SANDBOXING: NO
     preBuildScripts:
       - name: Build Kotlin framework

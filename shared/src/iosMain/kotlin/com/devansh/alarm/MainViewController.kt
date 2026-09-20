@@ -11,15 +11,18 @@ import com.devansh.alarm.engine.FireRequest
 import com.devansh.alarm.ui.App
 import platform.UIKit.UIViewController
 
-/** Replaced by the Swift UNUserNotificationCenter engine in Task 13. */
+/** Fallback when Swift doesn't inject an engine (previews, tests). */
 private object NoopEngine : AlarmEngine {
     override fun schedule(request: FireRequest) {}
     override fun cancel(alarmId: String) {}
     override fun cancelAll() {}
 }
 
-fun MainViewController(): UIViewController {
+fun MainViewController(): UIViewController = MainViewController(NoopEngine)
+
+/** Entry point for Swift: inject the UNUserNotificationCenter-backed engine. */
+fun MainViewController(engine: AlarmEngine): UIViewController {
     val repository = AlarmRepository(NativeSqliteDriver(AlarmDb.Schema, "alarm.db"))
-    val core = AppCore(repository, NoopEngine)
+    val core = AppCore(repository, engine)
     return ComposeUIViewController { App(core) }
 }
